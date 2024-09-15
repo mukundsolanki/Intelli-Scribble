@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/rendering.dart';
 
 void main() => runApp(DrawingBoardApp());
 
@@ -20,7 +25,9 @@ class _DrawingBoardState extends State<DrawingBoard> {
   List<List<Offset>> strokes = [];
   List<Color> strokeColors = [];
   List<Offset>? currentStroke;
-  Color currentColor = Colors.black; // Default color is black
+  Color currentColor = Colors.black;
+
+  GlobalKey _globalKey = GlobalKey();
 
   void _onColorSelected(Color color) {
     setState(() {
@@ -28,94 +35,137 @@ class _DrawingBoardState extends State<DrawingBoard> {
     });
   }
 
+  Future<void> _sendDrawingToServer() async {
+    try {
+      RenderRepaintBoundary boundary = _globalKey.currentContext!
+          .findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage();
+      ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://192.168.29.192:5000/upload'),
+      );
+      request.files.add(http.MultipartFile.fromBytes(
+        'image',
+        pngBytes,
+        filename: 'drawing.png',
+      ));
+
+      var response = await request.send();
+
+      if (response.statusCode == 200) {
+        print('Drawing sent successfully!');
+      } else {
+        print('Failed to send the drawing.');
+      }
+    } catch (e) {
+      print('Error capturing or sending the drawing: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Drawing Board')),
-      body: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            if (currentStroke == null) {
-              // Start a new stroke
-              currentStroke = [];
-              strokes.add(currentStroke!);
-              strokeColors.add(currentColor);
-            }
-            currentStroke!.add(details.localPosition);
-          });
-        },
-        onPanEnd: (details) {
-          setState(() {
-            if (currentStroke != null) {
-              currentStroke!.add(Offset(-1, -1)); // End of stroke
-              currentStroke = null; // Ready for new stroke
-            }
-          });
-        },
-        child: CustomPaint(
-          painter: DrawingPainter(strokes, strokeColors),
-          size: Size.infinite,
+      body: RepaintBoundary(
+        key: _globalKey,
+        child: GestureDetector(
+          onPanUpdate: (details) {
+            setState(() {
+              if (currentStroke == null) {
+                currentStroke = [];
+                strokes.add(currentStroke!);
+                strokeColors.add(currentColor);
+              }
+              currentStroke!.add(details.localPosition);
+            });
+          },
+          onPanEnd: (details) {
+            setState(() {
+              if (currentStroke != null) {
+                currentStroke!.add(Offset(-1, -1));
+                currentStroke = null;
+              }
+            });
+          },
+          child: CustomPaint(
+            painter: DrawingPainter(strokes, strokeColors),
+            size: Size.infinite,
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showMenu(
-            context: context,
-            position: RelativeRect.fromLTRB(
-              MediaQuery.of(context).size.width - 100,
-              MediaQuery.of(context).size.height - 100,
-              0,
-              0,
-            ),
-            items: [
-              PopupMenuItem<Color>(
-                value: Colors.red,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  color: Colors.red,
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: _sendDrawingToServer,
+            child: Icon(Icons.send),
+          ),
+          SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: () {
+              showMenu(
+                context: context,
+                position: RelativeRect.fromLTRB(
+                  MediaQuery.of(context).size.width - 100,
+                  MediaQuery.of(context).size.height - 100,
+                  0,
+                  0,
                 ),
-              ),
-              PopupMenuItem<Color>(
-                value: Colors.green,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  color: Colors.green,
-                ),
-              ),
-              PopupMenuItem<Color>(
-                value: Colors.blue,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  color: Colors.blue,
-                ),
-              ),
-              PopupMenuItem<Color>(
-                value: Colors.yellow,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  color: Colors.yellow,
-                ),
-              ),
-              PopupMenuItem<Color>(
-                value: Colors.purple,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  color: Colors.purple,
-                ),
-              ),
-            ],
-          ).then((selectedColor) {
-            if (selectedColor != null) {
-              _onColorSelected(selectedColor);
-            }
-          });
-        },
-        child: Icon(Icons.color_lens),
+                items: [
+                  PopupMenuItem<Color>(
+                    value: Colors.red,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      color: Colors.red,
+                    ),
+                  ),
+                  PopupMenuItem<Color>(
+                    value: Colors.green,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      color: Colors.green,
+                    ),
+                  ),
+                  PopupMenuItem<Color>(
+                    value: Colors.blue,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  PopupMenuItem<Color>(
+                    value: Colors.yellow,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      color: Colors.yellow,
+                    ),
+                  ),
+                  PopupMenuItem<Color>(
+                    value: Colors.purple,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      color: Colors.purple,
+                    ),
+                  ),
+                ],
+              ).then((selectedColor) {
+                if (selectedColor != null) {
+                  _onColorSelected(selectedColor);
+                }
+              });
+            },
+            child: Icon(Icons.color_lens),
+          ),
+        ],
       ),
     );
   }
@@ -137,7 +187,8 @@ class DrawingPainter extends CustomPainter {
 
       List<Offset> stroke = strokes[i];
       for (int j = 0; j < stroke.length - 1; j++) {
-        if (stroke[j] != const Offset(-1, -1) && stroke[j + 1] != const Offset(-1, -1)) {
+        if (stroke[j] != const Offset(-1, -1) &&
+            stroke[j + 1] != const Offset(-1, -1)) {
           canvas.drawLine(stroke[j], stroke[j + 1], paint);
         }
       }
