@@ -40,8 +40,22 @@ class _DrawingBoardState extends State<DrawingBoard> {
       RenderRepaintBoundary boundary = _globalKey.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage();
+
+      // Create a new image with white background
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      final paint = Paint()..color = Colors.white;
+
+      canvas.drawRect(
+          Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+          paint);
+      canvas.drawImage(image, Offset.zero, Paint());
+
+      final newImage =
+          await recorder.endRecording().toImage(image.width, image.height);
+
       ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+          await newImage.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       var request = http.MultipartRequest(
