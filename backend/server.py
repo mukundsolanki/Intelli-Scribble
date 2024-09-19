@@ -3,15 +3,17 @@ from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 import google.generativeai as genai
 from PIL import Image
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
-genai.configure(api_key='API_KEY')
+genai.configure(api_key='YOUR_API_KEY')
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 def allowed_file(filename):
@@ -45,25 +47,27 @@ def analyze_image_with_gemini(image_path):
         img
     ])
     print(response.text) 
+    return response.text
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'image' not in request.files:
         return jsonify({'error': 'No file part in the request'}), 400
-    
+
     file = request.files['image']
-    
+
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
+
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
-        
+
         try:
             analysis_result = analyze_image_with_gemini(file_path)
-            
+
+            # Send the analysis result to the client
             return jsonify({
                 'message': 'File uploaded and analyzed successfully',
                 'path': file_path,
@@ -71,9 +75,8 @@ def upload_file():
             }), 200
         except Exception as e:
             return jsonify({'error': f'Error analyzing image: {str(e)}'}), 500
-    
+
     return jsonify({'error': 'File type not allowed'}), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-

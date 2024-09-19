@@ -28,6 +28,9 @@ class _DrawingBoardState extends State<DrawingBoard> {
   Color currentColor = Colors.black;
 
   GlobalKey _globalKey = GlobalKey();
+  String serverResponse = ""; // Variable to hold the server response
+  Offset textPosition =
+      Offset(100, 100); // Initial position of the draggable text
 
   void _onColorSelected(Color color) {
     setState(() {
@@ -69,8 +72,13 @@ class _DrawingBoardState extends State<DrawingBoard> {
       ));
 
       var response = await request.send();
-
       if (response.statusCode == 200) {
+        // Parse the response and extract the analysis result
+        final responseData = await http.Response.fromStream(response);
+        final jsonResponse = json.decode(responseData.body);
+        setState(() {
+          serverResponse = jsonResponse['analysis'] ?? "No response received";
+        });
         print('Drawing sent successfully!');
       } else {
         print('Failed to send the drawing.');
@@ -84,39 +92,64 @@ class _DrawingBoardState extends State<DrawingBoard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Drawing Board')),
-      body: RepaintBoundary(
-        key: _globalKey,
-        child: GestureDetector(
-          onPanUpdate: (details) {
-            setState(() {
-              if (currentStroke == null) {
-                currentStroke = [];
-                strokes.add(currentStroke!);
-                strokeColors.add(currentColor);
-              }
-              currentStroke!.add(details.localPosition);
-            });
-          },
-          onPanEnd: (details) {
-            setState(() {
-              if (currentStroke != null) {
-                currentStroke!.add(Offset(-1, -1));
-                currentStroke = null;
-              }
-            });
-          },
-          child: CustomPaint(
-            painter: DrawingPainter(strokes, strokeColors),
-            size: Size.infinite,
+      body: Stack(
+        children: [
+          RepaintBoundary(
+            key: _globalKey,
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  if (currentStroke == null) {
+                    currentStroke = [];
+                    strokes.add(currentStroke!);
+                    strokeColors.add(currentColor);
+                  }
+                  currentStroke!.add(details.localPosition);
+                });
+              },
+              onPanEnd: (details) {
+                setState(() {
+                  if (currentStroke != null) {
+                    currentStroke!.add(Offset(-1, -1));
+                    currentStroke = null;
+                  }
+                });
+              },
+              child: CustomPaint(
+                painter: DrawingPainter(strokes, strokeColors),
+                size: Size.infinite,
+              ),
+            ),
           ),
-        ),
+          // Draggable text widget to display server response
+          if (serverResponse.isNotEmpty)
+            Positioned(
+              left: textPosition.dx,
+              top: textPosition.dy,
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  setState(() {
+                    textPosition += details.delta;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.all(8.0),
+                  color: Colors.blueAccent.withOpacity(0.7),
+                  child: Text(
+                    serverResponse,
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton(
             onPressed: _sendDrawingToServer,
-            child: Icon(Icons.send),
+            child: Icon(Icons.generating_tokens),
           ),
           SizedBox(height: 16),
           FloatingActionButton(
