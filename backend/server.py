@@ -5,6 +5,9 @@ import google.generativeai as genai
 from PIL import Image
 from flask_cors import CORS
 from dotenv import load_dotenv
+from supabase import create_client, Client
+import requests
+from io import BytesIO
 
 load_dotenv()
 
@@ -20,11 +23,18 @@ api_key = os.getenv('API_KEY')
 genai.configure(api_key=api_key)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
+# Supabase setup
+supabase_url = os.getenv('SUPABASE_URL')
+supabase_key = os.getenv('SUPABASE_KEY')
+supabase: Client = create_client(supabase_url, supabase_key)
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
 
 def analyze_image_with_gemini(image_path):
     img = Image.open(image_path)
@@ -50,37 +60,46 @@ def analyze_image_with_gemini(image_path):
         "PROPERLY QUOTE THE KEYS AND VALUES IN THE DICTIONARY FOR EASIER PARSING WITH Python's ast.literal_eval.",
         img
     ])
-    print(response.text) 
+    print(response.text)
     return response.text
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No file part in the request'}), 400
 
-    file = request.files['image']
+@app.route('/process_image', methods=['POST'])
+def process_image():
+    data = request.json
+    image_id = data.get('image_id')
+    image_url = data.get('image_url')
 
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
+    if not image_id or not image_url:
+        return jsonify({'error': 'Missing image_id or image_url'}), 400
 
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
+    try:
+        # Download the image from Supabase
+        response = requests.get(image_url)
+        if response.status_code != 200:
+            return jsonify({'error': 'Failed to download image from Supabase'}), 500
 
-        try:
-            analysis_result = analyze_image_with_gemini(file_path)
+        # Save the image temporarily
+        temp_image_path = os.path.join(
+            app.config['UPLOAD_FOLDER'], f"{image_id}.png")
+        with open(temp_image_path, 'wb') as f:
+            f.write(response.content)
 
-            # Send the analysis result to the client
-            return jsonify({
-                'message': 'File uploaded and analyzed successfully',
-                'path': file_path,
-                'analysis': analysis_result
-            }), 200
-        except Exception as e:
-            return jsonify({'error': f'Error analyzing image: {str(e)}'}), 500
+        # Analyze the image
+        analysis_result = analyze_image_with_gemini(temp_image_path)
 
-    return jsonify({'error': 'File type not allowed'}), 400
+        # Clean up the temporary file
+        os.remove(temp_image_path)
+
+        # Send the analysis result to the client
+        return jsonify({
+            'message': 'Image processed successfully',
+            'analysis': analysis_result
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Error processing image: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

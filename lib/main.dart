@@ -4,8 +4,20 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/rendering.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+import 'supabase_credentials.dart';
 
-void main() => runApp(DrawingBoardApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: SupabaseCredentials.url,
+    anonKey: SupabaseCredentials.anonKey,
+  );
+
+  runApp(DrawingBoardApp());
+}
 
 class DrawingBoardApp extends StatelessWidget {
   @override
@@ -41,6 +53,8 @@ class _DrawingBoardState extends State<DrawingBoard> {
   }
 
   Future<void> _sendDrawingToServer() async {
+    final supabase = Supabase.instance.client;
+
     try {
       RenderRepaintBoundary boundary = _globalKey.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
@@ -52,7 +66,7 @@ class _DrawingBoardState extends State<DrawingBoard> {
       final paint = Paint()..color = Colors.white;
 
       canvas.drawRect(
-          Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+          Rect.fromLTRB(0, 0, image.width.toDouble(), image.height.toDouble()),
           paint);
       canvas.drawImage(image, Offset.zero, Paint());
 
@@ -63,32 +77,50 @@ class _DrawingBoardState extends State<DrawingBoard> {
           await newImage.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('http://192.168.29.192:5000/upload'),
-      );
-      request.files.add(http.MultipartFile.fromBytes(
-        'image',
-        pngBytes,
-        filename: 'drawing.png',
-      ));
+      final uuid = Uuid();
+      final imageId = uuid.v4();
+      final fileName = '$imageId.png';
 
-      var response = await request.send();
+      const bucketName = 'drawings';
+
+      await supabase.storage.from(bucketName).uploadBinary(
+            fileName,
+            pngBytes,
+            fileOptions: FileOptions(contentType: 'image/png'),
+          );
+
+      final imageUrl = supabase.storage.from(bucketName).getPublicUrl(fileName);
+
+      var response = await http.post(
+        Uri.parse('http://192.168.29.192:5000/process_image'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, String>{
+          'image_id': imageId,
+          'image_url': imageUrl,
+        }),
+      );
+
       if (response.statusCode == 200) {
-        final responseData = await http.Response.fromStream(response);
-        final jsonResponse = json.decode(responseData.body);
+        final jsonResponse = json.decode(response.body);
         setState(() {
           responses.add({
             'text': jsonResponse['analysis'] ?? "No response received",
             'position': Offset(100, 100 + responses.length * 50),
           });
         });
-        print('Drawing sent successfully!');
+        print('Drawing processed successfully!');
       } else {
-        print('Failed to send the drawing.');
+        print(
+            'Failed to process the drawing. Status code: ${response.statusCode}');
+        print('Response body: ${response.body}');
       }
     } catch (e) {
-      print('Error capturing or sending the drawing: $e');
+      print('Error capturing, uploading, or processing the drawing: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to process drawing. Please try again.')),
+      );
     }
   }
 
