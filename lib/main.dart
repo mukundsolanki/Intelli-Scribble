@@ -28,9 +28,7 @@ class _DrawingBoardState extends State<DrawingBoard> {
   Color currentColor = Colors.black;
 
   GlobalKey _globalKey = GlobalKey();
-  String serverResponse = ""; // Variable to hold the server response
-  Offset textPosition =
-      Offset(100, 100); // Initial position of the draggable text
+  List<Map<String, dynamic>> responses = [];
 
   void _onColorSelected(Color color) {
     setState(() {
@@ -73,11 +71,13 @@ class _DrawingBoardState extends State<DrawingBoard> {
 
       var response = await request.send();
       if (response.statusCode == 200) {
-        // Parse the response and extract the analysis result
         final responseData = await http.Response.fromStream(response);
         final jsonResponse = json.decode(responseData.body);
         setState(() {
-          serverResponse = jsonResponse['analysis'] ?? "No response received";
+          responses.add({
+            'text': jsonResponse['analysis'] ?? "No response received",
+            'position': Offset(100, 100 + responses.length * 50),
+          });
         });
         print('Drawing sent successfully!');
       } else {
@@ -121,22 +121,21 @@ class _DrawingBoardState extends State<DrawingBoard> {
               ),
             ),
           ),
-          // Draggable text widget to display server response
-          if (serverResponse.isNotEmpty)
+          for (int i = 0; i < responses.length; i++)
             Positioned(
-              left: textPosition.dx,
-              top: textPosition.dy,
+              left: responses[i]['position'].dx,
+              top: responses[i]['position'].dy,
               child: GestureDetector(
                 onPanUpdate: (details) {
                   setState(() {
-                    textPosition += details.delta;
+                    responses[i]['position'] += details.delta;
                   });
                 },
                 child: Container(
                   padding: EdgeInsets.all(8.0),
                   color: Colors.blueAccent.withOpacity(0.7),
                   child: Text(
-                    serverResponse,
+                    responses[i]['text'],
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
