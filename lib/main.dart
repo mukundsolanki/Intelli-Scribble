@@ -88,6 +88,12 @@ class _DrawingBoardState extends State<DrawingBoard> {
     }
   }
 
+  void _removeResponse(int index) {
+    setState(() {
+      responses.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,13 +137,29 @@ class _DrawingBoardState extends State<DrawingBoard> {
                     responses[i]['position'] += details.delta;
                   });
                 },
-                child: Container(
-                  padding: EdgeInsets.all(8.0),
-                  color: Colors.blueAccent.withOpacity(0.7),
-                  child: Text(
-                    responses[i]['text'],
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
+                child: Stack(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8.0),
+                      color: Colors.blueAccent.withOpacity(0.7),
+                      child: Text(
+                        responses[i]['text'],
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: GestureDetector(
+                        onTap: () => _removeResponse(i),
+                        child: Icon(
+                          Icons.close,
+                          color: Colors.red,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
