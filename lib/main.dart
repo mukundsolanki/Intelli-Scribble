@@ -24,11 +24,15 @@ class DrawingBoard extends StatefulWidget {
 class _DrawingBoardState extends State<DrawingBoard> {
   List<List<Offset>> strokes = [];
   List<Color> strokeColors = [];
+  List<double> strokeWidths = [];
   List<Offset>? currentStroke;
   Color currentColor = Colors.black;
+  double currentStrokeWidth = 5.0;
 
   GlobalKey _globalKey = GlobalKey();
   List<Map<String, dynamic>> responses = [];
+
+  bool showSlider = false;
 
   void _onColorSelected(Color color) {
     setState(() {
@@ -94,6 +98,24 @@ class _DrawingBoardState extends State<DrawingBoard> {
     });
   }
 
+  void _clearCanvas() {
+    setState(() {
+      strokes.clear();
+      strokeColors.clear();
+      strokeWidths.clear();
+    });
+  }
+
+  void _undoLastStroke() {
+    setState(() {
+      if (strokes.isNotEmpty) {
+        strokes.removeLast();
+        strokeColors.removeLast();
+        strokeWidths.removeLast();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,6 +131,7 @@ class _DrawingBoardState extends State<DrawingBoard> {
                     currentStroke = [];
                     strokes.add(currentStroke!);
                     strokeColors.add(currentColor);
+                    strokeWidths.add(currentStrokeWidth);
                   }
                   currentStroke!.add(details.localPosition);
                 });
@@ -122,7 +145,7 @@ class _DrawingBoardState extends State<DrawingBoard> {
                 });
               },
               child: CustomPaint(
-                painter: DrawingPainter(strokes, strokeColors),
+                painter: DrawingPainter(strokes, strokeColors, strokeWidths),
                 size: Size.infinite,
               ),
             ),
@@ -160,6 +183,36 @@ class _DrawingBoardState extends State<DrawingBoard> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+          if (showSlider)
+            Positioned(
+              bottom: 120,
+              right: 20,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  width: 200,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                          'Stroke Width: ${currentStrokeWidth.toStringAsFixed(1)}'),
+                      Slider(
+                        value: currentStrokeWidth,
+                        min: 1,
+                        max: 20,
+                        onChanged: (value) {
+                          setState(() {
+                            currentStrokeWidth = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -233,6 +286,29 @@ class _DrawingBoardState extends State<DrawingBoard> {
             },
             child: Icon(Icons.color_lens),
           ),
+          SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: _clearCanvas,
+            backgroundColor: Colors.red,
+            child: Icon(Icons.clear),
+          ),
+          SizedBox(height: 16),
+          // Undo Button
+          FloatingActionButton(
+            onPressed: _undoLastStroke,
+            backgroundColor: Colors.orange,
+            child: Icon(Icons.undo),
+          ),
+          SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: () {
+              setState(() {
+                showSlider = !showSlider;
+              });
+            },
+            backgroundColor: Colors.purple,
+            child: Icon(showSlider ? Icons.close : Icons.brush),
+          ),
         ],
       ),
     );
@@ -242,15 +318,16 @@ class _DrawingBoardState extends State<DrawingBoard> {
 class DrawingPainter extends CustomPainter {
   final List<List<Offset>> strokes;
   final List<Color> strokeColors;
+  final List<double> strokeWidths;
 
-  DrawingPainter(this.strokes, this.strokeColors);
+  DrawingPainter(this.strokes, this.strokeColors, this.strokeWidths);
 
   @override
   void paint(Canvas canvas, Size size) {
     for (int i = 0; i < strokes.length; i++) {
       Paint paint = Paint()
         ..color = strokeColors[i]
-        ..strokeWidth = 5.0
+        ..strokeWidth = strokeWidths[i]
         ..strokeCap = StrokeCap.round;
 
       List<Offset> stroke = strokes[i];
