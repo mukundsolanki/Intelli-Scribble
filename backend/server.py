@@ -4,6 +4,9 @@ from werkzeug.utils import secure_filename
 import google.generativeai as genai
 from PIL import Image
 from flask_cors import CORS
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -13,7 +16,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
-genai.configure(api_key='YOUR_API_KEY')
+api_key = os.getenv('API_KEY')
+genai.configure(api_key=api_key)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 def allowed_file(filename):
