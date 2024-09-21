@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'supabase_credentials.dart';
+import 'saved_items_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,16 +20,53 @@ void main() async {
   runApp(DrawingBoardApp());
 }
 
-class DrawingBoardApp extends StatelessWidget {
+class DrawingBoardApp extends StatefulWidget {
+  @override
+  _DrawingBoardAppState createState() => _DrawingBoardAppState();
+}
+
+class _DrawingBoardAppState extends State<DrawingBoardApp> {
+  int _selectedIndex = 0;
+  final List<SavedWhiteboard> savedWhiteboards = [];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: DrawingBoard(),
+      home: Scaffold(
+        body: _selectedIndex == 0
+            ? DrawingBoard(savedWhiteboards: savedWhiteboards)
+            : SavedItemsPage(savedWhiteboards: savedWhiteboards),
+        bottomNavigationBar: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Icon(Icons.draw),
+              label: 'Draw',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.folder),
+              label: 'Saved Items',
+            ),
+          ],
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+        ),
+      ),
     );
   }
 }
 
 class DrawingBoard extends StatefulWidget {
+  final SavedWhiteboard? savedWhiteboard;
+  final List<SavedWhiteboard> savedWhiteboards;
+
+  DrawingBoard({this.savedWhiteboard, required this.savedWhiteboards});
+
   @override
   _DrawingBoardState createState() => _DrawingBoardState();
 }
@@ -45,6 +83,17 @@ class _DrawingBoardState extends State<DrawingBoard> {
   List<Map<String, dynamic>> responses = [];
 
   bool showSlider = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.savedWhiteboard != null) {
+      strokes = List.from(widget.savedWhiteboard!.strokes);
+      strokeColors = List.from(widget.savedWhiteboard!.strokeColors);
+      strokeWidths = List.from(widget.savedWhiteboard!.strokeWidths);
+      responses = List.from(widget.savedWhiteboard!.responses);
+    }
+  }
 
   void _onColorSelected(Color color) {
     setState(() {
@@ -148,10 +197,36 @@ class _DrawingBoardState extends State<DrawingBoard> {
     });
   }
 
+  void _saveWhiteboard() {
+    final savedWhiteboard = SavedWhiteboard(
+      strokes: List.from(strokes),
+      strokeColors: List.from(strokeColors),
+      strokeWidths: List.from(strokeWidths),
+      responses: List.from(responses),
+      timestamp: DateTime.now(),
+    );
+
+    setState(() {
+      widget.savedWhiteboards.add(savedWhiteboard);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Whiteboard saved successfully!')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Drawing Board')),
+      appBar: AppBar(
+        title: Text('Drawing Board'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.save),
+            onPressed: _saveWhiteboard,
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           RepaintBoundary(
@@ -294,14 +369,6 @@ class _DrawingBoardState extends State<DrawingBoard> {
                     ),
                   ),
                   PopupMenuItem<Color>(
-                    value: Colors.yellow,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      color: Colors.yellow,
-                    ),
-                  ),
-                  PopupMenuItem<Color>(
                     value: Colors.purple,
                     child: Container(
                       width: 30,
@@ -309,10 +376,18 @@ class _DrawingBoardState extends State<DrawingBoard> {
                       color: Colors.purple,
                     ),
                   ),
+                  PopupMenuItem<Color>(
+                    value: Colors.yellow,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      color: Colors.yellow,
+                    ),
+                  ),
                 ],
-              ).then((selectedColor) {
-                if (selectedColor != null) {
-                  _onColorSelected(selectedColor);
+              ).then((color) {
+                if (color != null) {
+                  _onColorSelected(color);
                 }
               });
             },
@@ -321,14 +396,11 @@ class _DrawingBoardState extends State<DrawingBoard> {
           SizedBox(height: 16),
           FloatingActionButton(
             onPressed: _clearCanvas,
-            backgroundColor: Colors.red,
             child: Icon(Icons.clear),
           ),
           SizedBox(height: 16),
-          // Undo Button
           FloatingActionButton(
             onPressed: _undoLastStroke,
-            backgroundColor: Colors.orange,
             child: Icon(Icons.undo),
           ),
           SizedBox(height: 16),
@@ -338,8 +410,7 @@ class _DrawingBoardState extends State<DrawingBoard> {
                 showSlider = !showSlider;
               });
             },
-            backgroundColor: Colors.purple,
-            child: Icon(showSlider ? Icons.close : Icons.brush),
+            child: Icon(Icons.brush),
           ),
         ],
       ),
@@ -357,15 +428,16 @@ class DrawingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (int i = 0; i < strokes.length; i++) {
-      Paint paint = Paint()
-        ..color = strokeColors[i]
-        ..strokeWidth = strokeWidths[i]
+      final stroke = strokes[i];
+      final color = strokeColors[i];
+      final strokeWidth = strokeWidths[i];
+      final paint = Paint()
+        ..color = color
+        ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.round;
 
-      List<Offset> stroke = strokes[i];
       for (int j = 0; j < stroke.length - 1; j++) {
-        if (stroke[j] != const Offset(-1, -1) &&
-            stroke[j + 1] != const Offset(-1, -1)) {
+        if (stroke[j] != Offset(-1, -1) && stroke[j + 1] != Offset(-1, -1)) {
           canvas.drawLine(stroke[j], stroke[j + 1], paint);
         }
       }
@@ -373,7 +445,21 @@ class DrawingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class SavedWhiteboard {
+  final List<List<Offset>> strokes;
+  final List<Color> strokeColors;
+  final List<double> strokeWidths;
+  final List<Map<String, dynamic>> responses;
+  final DateTime timestamp;
+
+  SavedWhiteboard({
+    required this.strokes,
+    required this.strokeColors,
+    required this.strokeWidths,
+    required this.responses,
+    required this.timestamp,
+  });
 }
