@@ -24,7 +24,8 @@ class SavedItemsPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => DrawingBoard(
-                      savedWhiteboards: [savedWhiteboard],
+                      savedWhiteboard: savedWhiteboard, 
+                      savedWhiteboards: savedWhiteboards,
                     ),
                   ),
                 );
