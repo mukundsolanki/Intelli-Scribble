@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'main.dart';
+import 'package:intelliscribble/drawing_board.dart';
+import 'package:intelliscribble/saved_whiteboard.dart';
 
 class SavedItemsPage extends StatelessWidget {
   final List<SavedWhiteboard> savedWhiteboards;
@@ -24,7 +25,7 @@ class SavedItemsPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => DrawingBoard(
-                      savedWhiteboard: savedWhiteboard, 
+                      savedWhiteboard: savedWhiteboard,
                       savedWhiteboards: savedWhiteboards,
                     ),
                   ),
