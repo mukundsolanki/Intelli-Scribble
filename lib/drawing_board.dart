@@ -88,7 +88,9 @@ class _DrawingBoardState extends State<DrawingBoard> {
       final imageUrl = supabase.storage.from(bucketName).getPublicUrl(fileName);
 
       var response = await http.post(
-        Uri.parse('http://192.168.29.192:5000/process_image'),
+        // Replace with your local server URL for development
+        // Uri.parse('https://localhost:port/process_image'),
+        Uri.parse('https://intelli-scribble-1.onrender.com/process_image'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
