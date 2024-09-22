@@ -50,8 +50,8 @@ class _HomePageState extends State<HomePage> {
         return DrawingBoard(savedWhiteboards: savedWhiteboards);
       case 1:
         return SavedItemsPage(savedWhiteboards: savedWhiteboards);
-      case 2:
-        return AccountPage(); 
+      // case 2:
+      //   return AccountPage(); 
       default:
         return DrawingBoard(savedWhiteboards: savedWhiteboards);
     }
