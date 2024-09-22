@@ -44,6 +44,6 @@ app.*.map.json
 
 .vscode/
 
-.env
-uploads/
+/backend/.env
+/backend/uploads/
 /lib/supabase_credentials.dart
