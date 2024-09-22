@@ -2,7 +2,7 @@
 
 # IntelliScribble
 
-IntelliScribble is a cross-platform application built with Flutter that runs on Android and web. It provides an intelligent whiteboard where users can draw complex equations, graphs, and diagrams, then solve them using AI. Users can also save their work for future reference.
+IntelliScribble is a cross-platform application built with Flutter that runs on Android and web. It provides an intelligent whiteboard where users can draw complex equations, graphs, and diagrams, then solve them using AI. Users can also save their work for future reference (Just like Apple math notes IOS 18 feature)
 
 ## Features
 
