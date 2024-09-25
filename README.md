@@ -32,8 +32,8 @@ IntelliScribble is a cross-platform application built with Flutter that runs on 
 1. Clone the repository:
 
 ```
-git clone https://github.com/mukundsolanki/intelliscribble.git 
-cd intelliscribble
+https://github.com/mukundsolanki/Intelli-Scribble
+cd Intelli-Scribble
 ```
 
 
