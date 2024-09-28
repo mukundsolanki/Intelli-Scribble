@@ -168,7 +168,7 @@ class _DrawingBoardState extends State<DrawingBoard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Drawing Board'),
+        title: Text('IntelliScribble'),
         actions: [
           IconButton(
             icon: Icon(Icons.save),
